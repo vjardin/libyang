@@ -108,8 +108,8 @@ jobs:
       - name: FRR github checkout
         uses: actions/checkout@v4
         with:
-          repository: 'FRRouting/frr.git'
-          ref: pull/15608/head
+          repository: 'vjardin/frr.git'
+          ref: 'libyang3'
           submodules: false
           fetch-depth: 0
           filter: tree:0
