@@ -36,7 +36,7 @@ on:
       - '**'
 jobs:
   build-frr:
-    name: Build FRR
+    name: Build FRR+libyang
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -49,9 +49,10 @@ jobs:
 #         - v2.1.128
     steps:
       - name: add missing packages per building-frr-for-ubuntu2204
-        uses: ConorMacBride/install-package@v1
+        uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          apt:
+          version: 1.0
+          packages:
             git
             autoconf
             libtool
@@ -82,6 +83,7 @@ jobs:
             libzmq5
             libzmq3-dev
             python3-pytest
+            gdb
       - name: libyang devel ${{ matrix.compiler }}
         uses: actions/checkout@v4
         with:
@@ -90,13 +92,15 @@ jobs:
           fetch-depth: 0
           filter: tree:0
           fetch-tags: true
+          path: 'ly'
       - name: make libyang from upstream
+        working-directory: 'ly'
         run: >-
           git branch &&
           mkdir build &&
           cd build &&
           export CC=${{ matrix.compiler }} &&
-          cmake -DCMAKE_BUILD_TYPE:String="Release" .. &&
+          cmake --install-prefix /usr -DCMAKE_BUILD_TYPE:String="Release" .. &&
           make -j $(nproc) &&
           sudo make install
       - name: Add FRR user and groups
@@ -114,8 +118,22 @@ jobs:
           fetch-depth: 0
           filter: tree:0
           fetch-tags: true
+          path: 'frr'
+      - name: Cache FRR from devel ${{ matrix.compiler }}
+        id: cache-frr
+        uses: actions/cache@v4
+        env:
+          cache-name: cache-frrNlibyang-build
+        with:
+          path: |
+            /home/runner/work/libyang/libyang/frr
+            /home/runner/work/libyang/libyang/ly
+          key: ${{ runner.os }}-${{ matrix.compiler }}-${{ env.cache-name }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.compiler }}-${{ env.cache-name }}
       - name: compile FRR with devel ${{ matrix.compiler }}
         if: ${{ always() }}
+        working-directory: 'frr'
         run: >-
           ls -la ../.. &&
           ls -la .. &&
@@ -146,6 +164,107 @@ jobs:
             --with-pkg-git-version \
             --with-pkg-extra-version=-MyOwnFRRVersion &&
             make -j $(nproc) &&
-            sudo make install &&
-            cd tests/topotests &&
-            cd all_protocol_startup && pytest-3 -s -v
+            sudo make install
+  test-libyangfrr:
+    name: Test FRR+libyang
+    runs-on: ubuntu-latest
+    needs: build-frr
+    strategy:
+      matrix:
+        compiler: [ gcc ]
+        frr_topotests:
+          - all_protocol_startup
+          - mgmt_config
+          - mgmt_debug_flags
+          - mgmt_notif
+          - mgmt_startup
+          - rip_allow_ecmp
+          - rip_passive_interface
+          - rip_topo1
+          - ripng_allow_ecmp
+          - ripng_route_map
+          - ripng_topo1
+#       frr-versions:
+#         - frr-9.1
+#         - frr-9.0.2
+#         - frr-8.5.4
+    steps:
+      - name: add missing packages per building-frr-for-ubuntu2204
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          version: 1.0
+          packages:
+            git
+            autoconf
+            libtool
+            make
+            libreadline-dev
+            texinfo
+            pkg-config
+            libelf-dev
+            libpam0g-dev
+            libjson-c-dev
+            bison
+            flex
+            libc-ares-dev
+            python3-dev
+            python3-sphinx
+            install-info
+            build-essential
+            libsnmp-dev
+            perl
+            libcap-dev
+            libelf-dev
+            libunwind-dev
+            protobuf-c-compiler
+            libprotobuf-c-dev
+            libgrpc++-dev
+            protobuf-compiler-grpc
+            libsqlite3-dev
+            libzmq5
+            libzmq3-dev
+            python3-pytest
+            gdb
+      - name: Cache FRR from devel ${{ matrix.compiler }}
+        id: cache-frr
+        uses: actions/cache@v4
+        env:
+          cache-name: cache-frrNlibyang-build
+        with:
+          path: |
+            /home/runner/work/libyang/libyang/frr
+            /home/runner/work/libyang/libyang/ly
+          key: ${{ runner.os }}-${{ matrix.compiler }}-${{ env.cache-name }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.compiler }}-${{ env.cache-name }}
+      - name: restore libyang ${{ matrix.compiler }} ${{ matrix.frr_topotests }}
+        working-directory: 'ly'
+        run: >-
+          cd build && sudo make install
+      - name: restore FRR user and groups
+        run: >-
+          sudo groupadd -r -g 92 frr &&
+          sudo groupadd -r -g 85 frrvty &&
+          sudo adduser --system --ingroup frr --home /var/run/frr/ --gecos "FRR suite" --shell /sbin/nologin frr &&
+          sudo usermod -a -G frrvty frr
+      - name: restore FRR ${{ matrix.compiler }} ${{ matrix.frr_topotests }}
+        working-directory: 'frr'
+        run: >-
+          sudo make install
+      - name: topotest ${{ matrix.compiler }} ${{ matrix.frr_topotests }}
+        working-directory: 'frr'
+        run: >-
+          cd tests/topotests &&
+          cd ${{ matrix.frr_topotests }} && sudo pytest-3 -s -v &&
+          sudo chown -R $(id -u).$(id -g) /tmp/topotests &&
+          ls -la /tmp/ &&
+          ls -la /tmp/topotests
+      - name: upload FRR topotests artifacts
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: topotests-log-archive-${{ runner.os }}-${{ matrix.compiler }}-${{ matrix.frr_topotests }}
+          path: /tmp/topotests
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 9
