@@ -28,12 +28,12 @@ on:
 #   # every night at 1.10
 #   - cron: '10 1 * * *'
 # the following in pending for fixes per the comments of pr !2203
-# push:
-#   branches:
-#     - '**'
-# pull_request:
-#   branches:
-#     - '**'
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
 jobs:
   build-frr:
     name: Build FRR
