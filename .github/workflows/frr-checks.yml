@@ -117,6 +117,7 @@ jobs:
       - name: compile FRR with devel ${{ matrix.compiler }}
         if: ${{ always() }}
         run: >-
+          ls -la ../.. &&
           ls -la .. &&
           ls -la &&
           export CC=${{ matrix.compiler }} &&
