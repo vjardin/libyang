@@ -185,6 +185,10 @@ jobs:
           - ripng_route_map
           - ripng_topo1
           - ospf_netns_vrf
+          - ospf6_ecmp_inter_area
+          - ospfv3_basic_functionality
+          - isis_topo1
+          - bfd_topo1
           - bgp_vrf_netns
           - bgp_route_map_on_match_next
 #       frr-versions:
