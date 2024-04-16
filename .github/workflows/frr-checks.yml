@@ -184,6 +184,7 @@ jobs:
           - ripng_allow_ecmp
           - ripng_route_map
           - ripng_topo1
+          - ospf_netns_vrf
 #       frr-versions:
 #         - frr-9.1
 #         - frr-9.0.2
