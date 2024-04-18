@@ -140,6 +140,7 @@ jobs:
           export CC=${{ matrix.compiler }} &&
           ./bootstrap.sh &&
           mkdir build && cd build &&
+          make distclean &&
           ../configure \
             --prefix=/usr \
             --includedir=\${prefix}/include \
