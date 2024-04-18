@@ -97,8 +97,7 @@ jobs:
         working-directory: 'ly'
         run: >-
           git branch &&
-          mkdir build &&
-          cd build &&
+          mkdir build && cd build &&
           export CC=${{ matrix.compiler }} &&
           cmake --install-prefix /usr -DCMAKE_BUILD_TYPE:String="Release" .. &&
           make -j $(nproc) &&
@@ -140,7 +139,8 @@ jobs:
           ls -la &&
           export CC=${{ matrix.compiler }} &&
           ./bootstrap.sh &&
-          ./configure \
+          mkdir build && cd build &&
+          ../configure \
             --prefix=/usr \
             --includedir=\${prefix}/include \
             --bindir=\${prefix}/bin \
@@ -257,7 +257,7 @@ jobs:
       - name: restore FRR ${{ matrix.compiler }} ${{ matrix.frr_topotests }}
         working-directory: 'frr'
         run: >-
-          sudo make install
+          cd build && sudo make install
       - name: install exabgp
         if: startsWith(matrix.frr_topotests, 'bgp')
         working-directory: 'frr'
